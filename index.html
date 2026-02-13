@@ -28,17 +28,24 @@ canvas {
 }
 #levelScreen h1 {
     font-size: 60px;
-    margin: 0;
+    margin: 10px;
+}
+#levelScreen h2 {
+    font-size: 30px;
+    margin: 5px;
 }
 #levelScreen p {
     font-size: 22px;
+    margin-top: 20px;
 }
 </style>
 </head>
 <body>
 
 <div id="levelScreen">
-    <h1 id="levelTitle">Prepárate para jugar, grosero 😡</h1>
+    <h1 id="levelTitle">NIVEL 1</h1>
+    <h2 id="lifeText">Vida: x3</h2>
+    <p>Prepárate para jugar grosero 😡</p>
 </div>
 
 <canvas id="gameCanvas" width="900" height="500"></canvas>
@@ -48,15 +55,17 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const levelScreen = document.getElementById("levelScreen");
 const levelTitle = document.getElementById("levelTitle");
+const lifeText = document.getElementById("lifeText");
 
 let level = 1;
+let lives = 3;
 let gravity = 0.8;
-let gameSpeed = 4;
+let gameSpeed = 3; // dificultad moderada nivel 1
 let obstacles = [];
 let clouds = [];
 let floorOffset = 0;
 let distance = 0;
-let levelLength = 4000;
+let levelLength = 3500;
 let gameOver = false;
 let gameStarted = false;
 let levelTimer = 0;
@@ -73,14 +82,16 @@ const player = {
 
 function prepareLevel() {
     levelScreen.style.display = "flex";
-    levelTitle.innerText = "Prepárate para jugar, grosero 😡";
+    levelTitle.innerText = "NIVEL " + level;
+    lifeText.innerText = "Vida: x" + lives;
     levelTimer = 0;
     gameStarted = false;
+    gameOver = false;
 
     obstacles = [];
     distance = 0;
-    gameSpeed = 3 + level * 1.2;
-    levelLength = 4000 + level * 2000;
+    gameSpeed = 3 + (level - 1) * 1.2; // progresivo
+    levelLength = 3500 + (level - 1) * 2000;
 }
 
 function createClouds() {
@@ -121,7 +132,7 @@ function drawFloor() {
 }
 
 function createObstacle() {
-    const size = 30 + Math.random() * 20;
+    const size = 30 + Math.random() * 15;
     obstacles.push({
         x: canvas.width,
         y: 400 - size,
@@ -136,7 +147,9 @@ function drawObstacles() {
         obs.x -= gameSpeed;
         ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
 
-        if (collision(player, obs)) endGame();
+        if (collision(player, obs)) {
+            loseLife();
+        }
 
         if (obs.x + obs.width < 0) obstacles.splice(index, 1);
     });
@@ -154,6 +167,37 @@ function collision(a, b) {
            a.y + a.height > b.y;
 }
 
+function loseLife() {
+    obstacles = [];
+    lives--;
+    lifeText.innerText = "Vida: x" + lives;
+
+    if (lives <= 0) {
+        showGameOver();
+        setTimeout(() => {
+            lives = 3;
+            level = 1;
+            prepareLevel();
+        }, 1500);
+    } else {
+        showGameOver();
+        setTimeout(() => {
+            prepareLevel();
+        }, 1000);
+    }
+}
+
+function showGameOver() {
+    gameStarted = false;
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "red";
+    ctx.font = "50px Arial";
+    ctx.fillText("GAME OVER", 280, 220);
+    ctx.font = "25px Arial";
+    ctx.fillText("Por no perdonar a tu princesa", 240, 270);
+}
+
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -163,7 +207,7 @@ function update() {
             levelScreen.style.display = "none";
             gameStarted = true;
         }
-    } else if (!gameOver) {
+    } else {
 
         drawClouds();
         drawFloor();
@@ -179,45 +223,25 @@ function update() {
         drawPlayer();
         drawObstacles();
 
-        if (Math.random() < 0.02 + level * 0.01) createObstacle();
+        // dificultad equilibrada nivel 1
+        if (Math.random() < 0.015 + (level - 1) * 0.01) {
+            createObstacle();
+        }
 
         distance += gameSpeed;
 
         if (distance > levelLength) {
             level++;
-            if (level > 3) {
-                winGame();
-            } else {
-                prepareLevel();
-            }
+            prepareLevel();
         }
     }
 
     requestAnimationFrame(update);
 }
 
-function endGame() {
-    gameOver = true;
-    ctx.fillStyle = "black";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = "red";
-    ctx.font = "50px Arial";
-    ctx.fillText("GAME OVER", 280, 220);
-    ctx.font = "25px Arial";
-    ctx.fillText("Por no perdonar a tu princesa", 240, 270);
-}
-
-function winGame() {
-    ctx.fillStyle = "black";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = "gold";
-    ctx.font = "50px Arial";
-    ctx.fillText("LA RECUPERASTE", 260, 220);
-}
-
 document.addEventListener("keydown", function(e) {
     if (e.code === "Space" && !player.jumping && gameStarted) {
-        player.dy = -15 - level * 2;
+        player.dy = -13 - (level - 1) * 2;
         player.jumping = true;
     }
 });
