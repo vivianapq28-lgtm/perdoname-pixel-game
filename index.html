@@ -2,202 +2,237 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Mi Juego</title>
+<title>El Rescate</title>
 <style>
-body { margin:0; overflow:hidden; }
-canvas { display:block; margin:auto; }
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+}
+canvas {
+    display: block;
+    margin: auto;
+    background: #bde0fe; /* Azul bebé */
+}
+#levelScreen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: black;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-family: Arial;
+    font-size: 40px;
+}
+.smallText {
+    font-size: 18px;
+    margin-top: 20px;
+}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+
+<div id="levelScreen"></div>
+<canvas id="gameCanvas" width="900" height="500"></canvas>
 
 <script>
-const canvas = document.getElementById("game");
+const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const levelScreen = document.getElementById("levelScreen");
 
-canvas.width = 1000;
-canvas.height = 400;
-
-let worldWidth = 3000;
-let cameraX = 0;
+let level = 1;
+let gravity = 0.8;
+let gameSpeed = 4;
+let obstacles = [];
+let clouds = [];
+let floorOffset = 0;
+let distance = 0;
+let levelLength = 3000;
 let gameOver = false;
-let levelComplete = false;
+let showLevelScreen = true;
 
-// JUGADOR
-let player = {
+const player = {
     x: 100,
-    y: 300,
+    y: 350,
     width: 40,
-    height: 40,
+    height: 50,
     dy: 0,
-    gravity: 0.8,
-    jumpPower: -14,
-    grounded: false,
-    speed: 4
+    jumping: false
 };
 
-let ground = { y: 350, height: 50 };
-
-// DRAGÓN FINAL
-let finalDragon = {
-    x: 2600,
-    y: 270,
-    width: 90,
-    height: 90
-};
-
-// MINI DRAGONES
-let miniDragons = [
-    {x:600, y:310, width:40, height:40},
-    {x:1100, y:310, width:40, height:40},
-    {x:1600, y:310, width:40, height:40},
-    {x:2100, y:310, width:40, height:40}
-];
-
-// META
-let finishLine = 2850;
-
-let keys = {};
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
-
-function resetGame(){
-    player.x = 100;
-    player.y = 300;
-    player.dy = 0;
-    cameraX = 0;
-    gameOver = false;
+function showLevelText() {
+    levelScreen.style.display = "flex";
+    levelScreen.innerHTML = `
+        <div>NIVEL ${level}</div>
+        <div class="smallText">Prepárate... la dificultad aumenta</div>
+    `;
+    setTimeout(() => {
+        levelScreen.style.display = "none";
+        showLevelScreen = false;
+    }, 2000);
 }
 
-function collision(a,b){
-    return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-    );
+function resetLevel() {
+    obstacles = [];
+    distance = 0;
+    gameSpeed = 3 + level * 1.5;
+    levelLength = 3000 + level * 1500;
+    showLevelScreen = true;
+    showLevelText();
 }
 
-function update(){
+function createObstacle() {
+    const size = 30 + Math.random() * 20;
+    obstacles.push({
+        x: canvas.width,
+        y: 400 - size,
+        width: size,
+        height: size,
+        type: Math.random() > 0.5 ? "block" : "dragon"
+    });
+}
 
-    if(gameOver || levelComplete) return;
-
-    if(keys["ArrowRight"]) player.x += player.speed;
-    if(keys["ArrowLeft"]) player.x -= player.speed;
-
-    if(keys[" "] && player.grounded){
-        player.dy = player.jumpPower;
-        player.grounded = false;
+function createClouds() {
+    for (let i = 0; i < 5; i++) {
+        clouds.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * 150,
+            size: 50 + Math.random() * 40
+        });
     }
+}
 
-    player.dy += player.gravity;
-    player.y += player.dy;
+function drawClouds() {
+    ctx.fillStyle = "white";
+    clouds.forEach(cloud => {
+        ctx.beginPath();
+        ctx.arc(cloud.x, cloud.y, cloud.size/2, 0, Math.PI*2);
+        ctx.fill();
+        cloud.x -= gameSpeed * 0.3;
+        if (cloud.x < -50) cloud.x = canvas.width + 50;
+    });
+}
 
-    if(player.y + player.height >= ground.y){
-        player.y = ground.y - player.height;
-        player.dy = 0;
-        player.grounded = true;
+function drawFloor() {
+    const brickWidth = 50;
+    const brickHeight = 30;
+    floorOffset -= gameSpeed;
+    if (floorOffset <= -brickWidth) floorOffset = 0;
+
+    for (let x = floorOffset; x < canvas.width; x += brickWidth) {
+        for (let y = 400; y < canvas.height; y += brickHeight) {
+            ctx.fillStyle = "#b5651d";
+            ctx.fillRect(x, y, brickWidth - 2, brickHeight - 2);
+        }
     }
+}
 
-    // Cámara sigue al jugador
-    cameraX = player.x - 300;
-    if(cameraX < 0) cameraX = 0;
-    if(cameraX > worldWidth - canvas.width)
-        cameraX = worldWidth - canvas.width;
+function drawPlayer() {
+    ctx.fillStyle = "blue";
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+}
 
-    // Colisión mini dragones
-    miniDragons.forEach(d=>{
-        if(collision(player,d)){
-            gameOver = true;
+function drawObstacles() {
+    obstacles.forEach((obs, index) => {
+        obs.x -= gameSpeed;
+
+        if (obs.type === "block") {
+            ctx.fillStyle = "darkred";
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+        } else {
+            ctx.fillStyle = "purple";
+            ctx.beginPath();
+            ctx.arc(obs.x + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        if (collision(player, obs)) {
+            endGame();
+        }
+
+        if (obs.x + obs.width < 0) {
+            obstacles.splice(index, 1);
         }
     });
+}
 
-    // Colisión dragón final
-    if(collision(player,finalDragon)){
-        gameOver = true;
+function collision(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
+}
+
+function update() {
+    if (gameOver || showLevelScreen) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawClouds();
+    drawFloor();
+
+    player.dy += gravity;
+    player.y += player.dy;
+
+    if (player.y > 350) {
+        player.y = 350;
+        player.jumping = false;
     }
 
-    // Línea de meta
-    if(player.x > finishLine){
-        levelComplete = true;
+    drawPlayer();
+    drawObstacles();
+
+    distance += gameSpeed;
+
+    if (Math.random() < 0.02 + level * 0.01) {
+        createObstacle();
     }
-}
 
-function drawCloud(x,y){
-    ctx.fillStyle="white";
-    ctx.beginPath();
-    ctx.arc(x,y,20,0,Math.PI*2);
-    ctx.arc(x+25,y,25,0,Math.PI*2);
-    ctx.arc(x+50,y,20,0,Math.PI*2);
-    ctx.fill();
-}
-
-function drawBricks(){
-    for(let i=0;i<worldWidth;i+=40){
-        ctx.fillStyle="#b55239";
-        ctx.fillRect(i-cameraX,ground.y,38,48);
-        ctx.strokeStyle="#7a2d1d";
-        ctx.strokeRect(i-cameraX,ground.y,38,48);
+    if (distance >= levelLength) {
+        level++;
+        if (level > 3) {
+            winGame();
+        } else {
+            resetLevel();
+        }
     }
+
+    requestAnimationFrame(update);
 }
 
-function drawDragon(d,color){
-    ctx.fillStyle=color;
-    ctx.fillRect(d.x-cameraX,d.y,d.width,d.height);
-    ctx.fillStyle="yellow";
-    ctx.fillRect(d.x-cameraX+d.width-15,d.y+10,10,10);
-}
-
-function draw(){
-
-    // Cielo azul bebé
-    ctx.fillStyle="#bde7ff";
+function endGame() {
+    gameOver = true;
+    ctx.fillStyle = "black";
     ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    // Nubes (efecto desplazamiento más lento)
-    drawCloud(200-cameraX*0.3,70);
-    drawCloud(600-cameraX*0.3,90);
-    drawCloud(1000-cameraX*0.3,60);
-    drawCloud(1500-cameraX*0.3,80);
-
-    drawBricks();
-
-    // Mini dragones
-    miniDragons.forEach(d=>drawDragon(d,"#cc3333"));
-
-    // Dragón final
-    drawDragon(finalDragon,"#5e2ca5");
-
-    // Línea meta
-    ctx.fillStyle="black";
-    ctx.fillRect(finishLine-cameraX,250,10,100);
-
-    // Jugador
-    ctx.fillStyle="#ff3b3b";
-    ctx.fillRect(player.x-cameraX,player.y,player.width,player.height);
-
-    if(gameOver){
-        ctx.fillStyle="black";
-        ctx.font="bold 45px Arial";
-        ctx.fillText("GAME OVER",350,170);
-        ctx.font="25px Arial";
-        ctx.fillText("Por no perdonar a tu princesa.",300,210);
-    }
-
-    if(levelComplete){
-        ctx.fillStyle="black";
-        ctx.font="bold 50px Arial";
-        ctx.fillText("NIVEL COMPLETADO",280,200);
-    }
+    ctx.fillStyle = "red";
+    ctx.font = "50px Arial";
+    ctx.fillText("GAME OVER", 300, 200);
+    ctx.font = "25px Arial";
+    ctx.fillText("Por no perdonar a tu princesa", 250, 260);
 }
 
-function loop(){
-    update();
-    draw();
-    requestAnimationFrame(loop);
+function winGame() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "gold";
+    ctx.font = "50px Arial";
+    ctx.fillText("HAS LLEGADO A ELLA", 220, 200);
 }
 
-loop();
+document.addEventListener("keydown", function(e) {
+    if (e.code === "Space" && !player.jumping) {
+        player.dy = -15 - level * 2;
+        player.jumping = true;
+    }
+});
+
+createClouds();
+resetLevel();
+update();
 </script>
+
 </body>
 </html>
