@@ -25,23 +25,30 @@ canvas {
     align-items: center;
     flex-direction: column;
     font-family: Arial;
-    font-size: 40px;
 }
-.smallText {
-    font-size: 18px;
-    margin-top: 20px;
+#levelScreen h1 {
+    font-size: 60px;
+    margin: 0;
+}
+#levelScreen p {
+    font-size: 20px;
 }
 </style>
 </head>
 <body>
 
-<div id="levelScreen"></div>
+<div id="levelScreen">
+    <h1 id="levelTitle">NIVEL 1</h1>
+    <p>Prepárate... la dificultad aumenta</p>
+</div>
+
 <canvas id="gameCanvas" width="900" height="500"></canvas>
 
 <script>
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const levelScreen = document.getElementById("levelScreen");
+const levelTitle = document.getElementById("levelTitle");
 
 let level = 1;
 let gravity = 0.8;
@@ -50,9 +57,11 @@ let obstacles = [];
 let clouds = [];
 let floorOffset = 0;
 let distance = 0;
-let levelLength = 3000;
+let levelLength = 4000;
 let gameOver = false;
-let showLevelScreen = true;
+let gameStarted = false;
+let levelTimer = 0;
+let showLevelDuration = 120; // frames (~2 segundos a 60fps)
 
 const player = {
     x: 100,
@@ -63,44 +72,25 @@ const player = {
     jumping: false
 };
 
-function showLevelText() {
+function prepareLevel() {
     levelScreen.style.display = "flex";
-    levelScreen.innerHTML = `
-        <div>NIVEL ${level}</div>
-        <div class="smallText">Prepárate... la dificultad aumenta</div>
-    `;
-    setTimeout(() => {
-        levelScreen.style.display = "none";
-        showLevelScreen = false;
-    }, 2000);
-}
+    levelTitle.innerText = "NIVEL " + level;
+    levelTimer = 0;
+    gameStarted = false;
 
-function resetLevel() {
     obstacles = [];
     distance = 0;
-    gameSpeed = 3 + level * 1.5;
-    levelLength = 3000 + level * 1500;
-    showLevelScreen = true;
-    showLevelText();
-}
-
-function createObstacle() {
-    const size = 30 + Math.random() * 20;
-    obstacles.push({
-        x: canvas.width,
-        y: 400 - size,
-        width: size,
-        height: size,
-        type: Math.random() > 0.5 ? "block" : "dragon"
-    });
+    gameSpeed = 3 + level * 1.2;
+    levelLength = 4000 + level * 2000;
 }
 
 function createClouds() {
-    for (let i = 0; i < 5; i++) {
+    clouds = [];
+    for (let i = 0; i < 6; i++) {
         clouds.push({
             x: Math.random() * canvas.width,
             y: Math.random() * 150,
-            size: 50 + Math.random() * 40
+            size: 40 + Math.random() * 40
         });
     }
 }
@@ -117,122 +107,11 @@ function drawClouds() {
 }
 
 function drawFloor() {
-    const brickWidth = 50;
+    const brickWidth = 60;
     const brickHeight = 30;
+
     floorOffset -= gameSpeed;
     if (floorOffset <= -brickWidth) floorOffset = 0;
 
     for (let x = floorOffset; x < canvas.width; x += brickWidth) {
-        for (let y = 400; y < canvas.height; y += brickHeight) {
-            ctx.fillStyle = "#b5651d";
-            ctx.fillRect(x, y, brickWidth - 2, brickHeight - 2);
-        }
-    }
-}
-
-function drawPlayer() {
-    ctx.fillStyle = "blue";
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-}
-
-function drawObstacles() {
-    obstacles.forEach((obs, index) => {
-        obs.x -= gameSpeed;
-
-        if (obs.type === "block") {
-            ctx.fillStyle = "darkred";
-            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-        } else {
-            ctx.fillStyle = "purple";
-            ctx.beginPath();
-            ctx.arc(obs.x + obs.width/2, obs.y + obs.height/2, obs.width/2, 0, Math.PI*2);
-            ctx.fill();
-        }
-
-        if (collision(player, obs)) {
-            endGame();
-        }
-
-        if (obs.x + obs.width < 0) {
-            obstacles.splice(index, 1);
-        }
-    });
-}
-
-function collision(a, b) {
-    return a.x < b.x + b.width &&
-           a.x + a.width > b.x &&
-           a.y < b.y + b.height &&
-           a.y + a.height > b.y;
-}
-
-function update() {
-    if (gameOver || showLevelScreen) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    drawClouds();
-    drawFloor();
-
-    player.dy += gravity;
-    player.y += player.dy;
-
-    if (player.y > 350) {
-        player.y = 350;
-        player.jumping = false;
-    }
-
-    drawPlayer();
-    drawObstacles();
-
-    distance += gameSpeed;
-
-    if (Math.random() < 0.02 + level * 0.01) {
-        createObstacle();
-    }
-
-    if (distance >= levelLength) {
-        level++;
-        if (level > 3) {
-            winGame();
-        } else {
-            resetLevel();
-        }
-    }
-
-    requestAnimationFrame(update);
-}
-
-function endGame() {
-    gameOver = true;
-    ctx.fillStyle = "black";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = "red";
-    ctx.font = "50px Arial";
-    ctx.fillText("GAME OVER", 300, 200);
-    ctx.font = "25px Arial";
-    ctx.fillText("Por no perdonar a tu princesa", 250, 260);
-}
-
-function winGame() {
-    ctx.fillStyle = "black";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = "gold";
-    ctx.font = "50px Arial";
-    ctx.fillText("HAS LLEGADO A ELLA", 220, 200);
-}
-
-document.addEventListener("keydown", function(e) {
-    if (e.code === "Space" && !player.jumping) {
-        player.dy = -15 - level * 2;
-        player.jumping = true;
-    }
-});
-
-createClouds();
-resetLevel();
-update();
-</script>
-
-</body>
-</html>
+        for (let y = 400; y < can
