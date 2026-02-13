@@ -8,13 +8,11 @@
 body {
     margin: 0;
     overflow: hidden;
-    background: black;
 }
 
 canvas {
     display: block;
     margin: auto;
-    background: linear-gradient(#5ec9ff, #e0f7ff);
 }
 </style>
 </head>
@@ -29,6 +27,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = 1000;
 canvas.height = 400;
 
+let level = 1;
 let gameOver = false;
 
 // JUGADOR
@@ -43,13 +42,12 @@ let player = {
     grounded: false
 };
 
-// SUELO
 let ground = {
     y: 350,
     height: 50
 };
 
-// DRAGÓN
+// DRAGÓN NIVEL 1
 let dragon = {
     x: 850,
     y: 270,
@@ -58,22 +56,32 @@ let dragon = {
 };
 
 let fireballs = [];
-let fireParticles = [];
 let fireTimer = 0;
+
+// NUBES
+let clouds = [
+    {x: 100, y: 60},
+    {x: 400, y: 90},
+    {x: 700, y: 70}
+];
 
 let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
+function resetPlayer() {
+    player.x = 100;
+    player.y = 300;
+    player.dy = 0;
+}
+
 function update() {
 
     if (gameOver) return;
 
-    // Movimiento
     if (keys["ArrowRight"]) player.x += 5;
     if (keys["ArrowLeft"]) player.x -= 5;
 
-    // Salto
     if (keys[" "] && player.grounded) {
         player.dy = player.jumpPower;
         player.grounded = false;
@@ -88,59 +96,70 @@ function update() {
         player.grounded = true;
     }
 
-    // Lanzar bolas de fuego
-    fireTimer++;
-    if (fireTimer > 90) {
-        fireballs.push({
-            x: dragon.x,
-            y: dragon.y + 40,
-            size: 18,
-            speed: 6
-        });
-        fireTimer = 0;
-    }
+    // Movimiento nubes
+    clouds.forEach(c => {
+        c.x += 0.3;
+        if (c.x > canvas.width + 100) c.x = -100;
+    });
 
-    fireballs.forEach(f => {
-        f.x -= f.speed;
+    if (level === 1) {
 
-        if (
-            player.x < f.x + f.size &&
-            player.x + player.width > f.x &&
-            player.y < f.y + f.size &&
-            player.y + player.height > f.y
-        ) {
-            gameOver = true;
+        fireTimer++;
+        if (fireTimer > 90) {
+            fireballs.push({
+                x: dragon.x,
+                y: dragon.y + 40,
+                size: 18,
+                speed: 6
+            });
+            fireTimer = 0;
         }
-    });
 
-    // Partículas de fuego del suelo
-    for (let i = 0; i < 3; i++) {
-        fireParticles.push({
-            x: 720 + Math.random() * 250,
-            y: ground.y,
-            size: 5 + Math.random() * 10,
-            speed: 1 + Math.random() * 2
+        fireballs.forEach(f => {
+            f.x -= f.speed;
+
+            if (
+                player.x < f.x + f.size &&
+                player.x + player.width > f.x &&
+                player.y < f.y + f.size &&
+                player.y + player.height > f.y
+            ) {
+                gameOver = true;
+            }
         });
+
+        // Si pasa el dragón → nivel 2
+        if (player.x > dragon.x + 100) {
+            level = 2;
+            resetPlayer();
+        }
     }
+}
 
-    fireParticles.forEach(p => {
-        p.y -= p.speed;
-    });
+function drawCloud(x, y) {
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.arc(x + 25, y, 25, 0, Math.PI * 2);
+    ctx.arc(x + 50, y, 20, 0, Math.PI * 2);
+    ctx.fill();
+}
 
-    fireParticles = fireParticles.filter(p => p.y > 250);
+function drawBricks() {
+    for (let i = 0; i < canvas.width; i += 40) {
+        ctx.fillStyle = "#b55239";
+        ctx.fillRect(i, ground.y, 38, 48);
+        ctx.strokeStyle = "#7a2d1d";
+        ctx.strokeRect(i, ground.y, 38, 48);
+    }
 }
 
 function drawDragon() {
     ctx.fillStyle = "#5e2ca5";
     ctx.fillRect(dragon.x, dragon.y, dragon.width, dragon.height);
 
-    // Ojo
     ctx.fillStyle = "yellow";
     ctx.fillRect(dragon.x + 50, dragon.y + 20, 12, 12);
-
-    // Boca
-    ctx.fillStyle = "black";
-    ctx.fillRect(dragon.x + 60, dragon.y + 45, 15, 8);
 }
 
 function drawFireball(f) {
@@ -157,36 +176,35 @@ function drawFireball(f) {
 
 function draw() {
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Cielo azul bebé
+    ctx.fillStyle = "#bde7ff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Suelo
-    ctx.fillStyle = "#3cb043";
-    ctx.fillRect(0, ground.y, canvas.width, ground.height);
+    // Nubes
+    clouds.forEach(c => drawCloud(c.x, c.y));
 
-    // Zona fuego
-    ctx.fillStyle = "#5c0000";
-    ctx.fillRect(700, ground.y, 300, ground.height);
+    drawBricks();
 
-    // Partículas fuego
-    fireParticles.forEach(p => {
-        ctx.fillStyle = "orange";
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    if (level === 1) {
+        drawDragon();
+        fireballs.forEach(drawFireball);
+    }
 
-    drawDragon();
+    if (level === 2) {
+        ctx.fillStyle = "black";
+        ctx.font = "50px Arial";
+        ctx.fillText("NIVEL 2", 400, 200);
+    }
 
-    // Jugador
     ctx.fillStyle = "#ff3b3b";
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    fireballs.forEach(drawFireball);
-
     if (gameOver) {
         ctx.fillStyle = "black";
-        ctx.font = "bold 60px Arial";
-        ctx.fillText("GAME OVER", 300, 200);
+        ctx.font = "bold 40px Arial";
+        ctx.fillText("GAME OVER", 350, 180);
+        ctx.font = "25px Arial";
+        ctx.fillText("Por no perdonar a tu princesa...", 330, 220);
     }
 }
 
