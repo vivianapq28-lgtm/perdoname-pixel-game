@@ -1,15 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Mi Juego</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: black; }
-    canvas { display: block; margin: auto; background: linear-gradient(#87CEEB, #ffffff); }
-  </style>
-</head>
-<body>
+<meta charset="UTF-8">
+<title>Mi Juego</title>
 
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+}
+
+canvas {
+    display: block;
+    margin: auto;
+    background: linear-gradient(#5ec9ff, #e0f7ff);
+}
+</style>
+</head>
+
+<body>
 <canvas id="game"></canvas>
 
 <script>
@@ -35,24 +45,22 @@ let player = {
 
 // SUELO
 let ground = {
-    x: 0,
     y: 350,
-    width: 2000,
     height: 50
 };
 
 // DRAGÓN
 let dragon = {
     x: 850,
-    y: 290,
-    width: 60,
-    height: 60
+    y: 270,
+    width: 80,
+    height: 80
 };
 
 let fireballs = [];
+let fireParticles = [];
 let fireTimer = 0;
 
-// CONTROLES
 let keys = {};
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
@@ -61,9 +69,11 @@ function update() {
 
     if (gameOver) return;
 
+    // Movimiento
     if (keys["ArrowRight"]) player.x += 5;
     if (keys["ArrowLeft"]) player.x -= 5;
 
+    // Salto
     if (keys[" "] && player.grounded) {
         player.dy = player.jumpPower;
         player.grounded = false;
@@ -80,11 +90,11 @@ function update() {
 
     // Lanzar bolas de fuego
     fireTimer++;
-    if (fireTimer > 100) {
+    if (fireTimer > 90) {
         fireballs.push({
             x: dragon.x,
-            y: dragon.y + 20,
-            size: 20,
+            y: dragon.y + 40,
+            size: 18,
             speed: 6
         });
         fireTimer = 0;
@@ -93,7 +103,6 @@ function update() {
     fireballs.forEach(f => {
         f.x -= f.speed;
 
-        // Colisión con jugador
         if (
             player.x < f.x + f.size &&
             player.x + player.width > f.x &&
@@ -103,50 +112,81 @@ function update() {
             gameOver = true;
         }
     });
+
+    // Partículas de fuego del suelo
+    for (let i = 0; i < 3; i++) {
+        fireParticles.push({
+            x: 720 + Math.random() * 250,
+            y: ground.y,
+            size: 5 + Math.random() * 10,
+            speed: 1 + Math.random() * 2
+        });
+    }
+
+    fireParticles.forEach(p => {
+        p.y -= p.speed;
+    });
+
+    fireParticles = fireParticles.filter(p => p.y > 250);
 }
 
-function drawFire(x, y) {
+function drawDragon() {
+    ctx.fillStyle = "#5e2ca5";
+    ctx.fillRect(dragon.x, dragon.y, dragon.width, dragon.height);
+
+    // Ojo
+    ctx.fillStyle = "yellow";
+    ctx.fillRect(dragon.x + 50, dragon.y + 20, 12, 12);
+
+    // Boca
+    ctx.fillStyle = "black";
+    ctx.fillRect(dragon.x + 60, dragon.y + 45, 15, 8);
+}
+
+function drawFireball(f) {
     ctx.fillStyle = "orange";
     ctx.beginPath();
-    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = "red";
     ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.arc(f.x, f.y, f.size / 2, 0, Math.PI * 2);
     ctx.fill();
 }
 
 function draw() {
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Suelo
-    ctx.fillStyle = "green";
-    ctx.fillRect(ground.x, ground.y, canvas.width, ground.height);
+    ctx.fillStyle = "#3cb043";
+    ctx.fillRect(0, ground.y, canvas.width, ground.height);
 
-    // Zona de fuego final
-    ctx.fillStyle = "darkred";
+    // Zona fuego
+    ctx.fillStyle = "#5c0000";
     ctx.fillRect(700, ground.y, 300, ground.height);
 
-    // Dragón
-    ctx.fillStyle = "purple";
-    ctx.fillRect(dragon.x, dragon.y, dragon.width, dragon.height);
+    // Partículas fuego
+    fireParticles.forEach(p => {
+        ctx.fillStyle = "orange";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
 
-    // Ojo dragón
-    ctx.fillStyle = "yellow";
-    ctx.fillRect(dragon.x + 40, dragon.y + 10, 10, 10);
+    drawDragon();
 
     // Jugador
-    ctx.fillStyle = "red";
+    ctx.fillStyle = "#ff3b3b";
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // Bolas de fuego
-    fireballs.forEach(f => drawFire(f.x, f.y));
+    fireballs.forEach(drawFireball);
 
     if (gameOver) {
         ctx.fillStyle = "black";
-        ctx.font = "50px Arial";
-        ctx.fillText("GAME OVER", 350, 200);
+        ctx.font = "bold 60px Arial";
+        ctx.fillText("GAME OVER", 300, 200);
     }
 }
 
@@ -161,4 +201,3 @@ loop();
 
 </body>
 </html>
-
