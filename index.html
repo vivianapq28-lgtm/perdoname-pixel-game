@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Perdona a tu Princesa</title>
+<title>Perdona a tu Princesa - Pixel</title>
 <style>
 body{
   margin:0;
@@ -24,6 +24,7 @@ body{
   width:7000px;
 }
 
+/* PISO PIXELADO */
 .ground{
   position:absolute;
   bottom:0;
@@ -33,65 +34,69 @@ body{
     repeating-linear-gradient(
       90deg,
       #c06030 0px,
-      #c06030 60px,
-      black 60px,
-      black 64px
+      #c06030 20px,
+      black 20px,
+      black 22px
     ),
     repeating-linear-gradient(
       0deg,
       #c06030 0px,
-      #c06030 30px,
-      black 30px,
-      black 34px
+      #c06030 20px,
+      black 20px,
+      black 22px
     );
 }
 
+/* PERSONAJE PIXEL */
 .player{
   position:absolute;
-  width:40px;
-  height:40px;
+  width:16px;
+  height:16px;
   background:#ffcc99;
-  border:4px solid black;
+  border:2px solid black;
   bottom:100px;
   left:150px;
 }
 
+/* ENEMIGOS PIXEL */
 .enemy{
   position:absolute;
-  width:30px;  /* más delgado */
-  height:30px;
+  width:16px;
+  height:16px;
   background:#8b0000;
-  border:3px solid black;
+  border:2px solid black;
   bottom:100px;
 }
 
 .dragon{
   position:absolute;
-  width:60px; /* más delgado */
-  height:60px;
+  width:32px;
+  height:32px;
   background:#550000;
-  border:4px solid black;
+  border:3px solid black;
   bottom:100px;
 }
 
+/* META PIXEL */
 .goal{
   position:absolute;
-  width:20px;
-  height:120px;
+  width:8px;
+  height:48px;
   background:yellow;
-  border:4px solid black;
+  border:2px solid black;
   bottom:100px;
 }
 
+/* NUBES PIXEL */
 .cloud{
   position:absolute;
-  width:80px;
-  height:50px;
+  width:16px;
+  height:8px;
   background:white;
-  border-radius:50%;
-  opacity:0.7;
+  border:1px solid #ccc;
 }
 
+/* OVERLAY */
 #overlay{
   position:fixed;
   width:100%;
@@ -102,15 +107,16 @@ body{
   justify-content:center;
   align-items:center;
   flex-direction:column;
-  font-size:30px;
+  font-size:20px;
   text-align:center;
   z-index:999;
 }
 
+/* FUEGOS PIXEL */
 .firework{
   position:absolute;
-  width:6px;
-  height:6px;
+  width:4px;
+  height:4px;
   border-radius:50%;
 }
 </style>
@@ -124,19 +130,17 @@ body{
     <div class="ground"></div>
     <div class="player" id="player"></div>
 
-    <div class="enemy" style="left:1000px;"></div>
-    <div class="enemy" style="left:1800px;"></div>
-    <div class="enemy" style="left:2600px;"></div>
+    <div class="enemy" style="left:300px;"></div>
+    <div class="enemy" style="left:600px;"></div>
+    <div class="enemy" style="left:900px;"></div>
 
-    <div class="dragon" style="left:3800px;"></div>
-    <div class="goal" style="left:6000px;"></div>
+    <div class="dragon" style="left:1200px;"></div>
+    <div class="goal" style="left:2000px;"></div>
 
-    <!-- Nubes -->
+    <!-- NUBES PIXEL -->
     <div class="cloud" style="left:400px; top:50px;"></div>
-    <div class="cloud" style="left:1200px; top:80px;"></div>
-    <div class="cloud" style="left:2200px; top:30px;"></div>
-    <div class="cloud" style="left:3500px; top:70px;"></div>
-    <div class="cloud" style="left:5000px; top:40px;"></div>
+    <div class="cloud" style="left:600px; top:30px;"></div>
+    <div class="cloud" style="left:900px; top:60px;"></div>
   </div>
 </div>
 
@@ -152,7 +156,7 @@ const clouds = document.querySelectorAll(".cloud");
 let position = 150;
 let velocityY = 0;
 let gravity = 1;
-let jumping = false;
+let jumpsQueue = 0; // cola de saltos
 let lives = 3;
 let level = 1;
 let perfectLevel = true;
@@ -163,17 +167,22 @@ const dragonInitialX = parseInt(dragon.style.left);
 let dragonDirection = 1;
 
 document.addEventListener("keydown", e=>{
-  if(e.key==="ArrowRight") position += 1.5; // más ligero
-  if(e.key==="ArrowLeft") position -= 1.5;
+  if(e.key==="ArrowRight") position += 2; // más rápido
+  if(e.key==="ArrowLeft") position -= 2;
   if(position < 0) position = 0;
-  if(e.key===" " && !jumping){
-    velocityY = -15; // salto un poco más ligero
-    jumping = true;
+  if(e.key===" "){
+    jumpsQueue += 1; // cada barra suma un salto
   }
 });
 
 function gameLoop(){
-  // SALTO
+  // SALTO MÚLTIPLE
+  if(jumpsQueue > 0 && velocityY === 0){
+    velocityY = -12; // fuerza de salto
+    jumping = true;
+    jumpsQueue--;
+  }
+
   velocityY += gravity;
   let bottom = parseInt(player.style.bottom||100);
   bottom -= velocityY;
@@ -186,7 +195,7 @@ function gameLoop(){
   player.style.left = position+"px";
 
   // CÁMARA
-  let cameraX = position - 300;
+  let cameraX = position - 150;
   if(cameraX < 0) cameraX = 0;
   world.style.transform = `translateX(${-cameraX}px)`;
 
@@ -202,9 +211,9 @@ function moveEnemies(){
   enemies.forEach(enemy=>{
     let enemyX = parseInt(enemy.style.left);
     if(enemyX > position){
-      enemy.style.left = (enemyX - 1.5)+"px";
+      enemy.style.left = (enemyX - 1)+"px";
     } else {
-      enemy.style.left = (enemyX + 1.5)+"px";
+      enemy.style.left = (enemyX + 1)+"px";
     }
   });
 }
@@ -212,7 +221,7 @@ function moveEnemies(){
 function moveDragon(){
   let dragonX = parseInt(dragon.style.left);
   dragonX += dragonDirection * 1;
-  if(dragonX > dragonInitialX + 200 || dragonX < dragonInitialX - 200){
+  if(dragonX > dragonInitialX + 64 || dragonX < dragonInitialX - 64){
     dragonDirection *= -1;
   }
   dragon.style.left = dragonX + "px";
@@ -220,9 +229,9 @@ function moveDragon(){
 
 function moveClouds(){
   clouds.forEach(cloud=>{
-    let left = parseFloat(cloud.style.left);
-    left -= 0.3; // movimiento lento
-    if(left < -100) left = 7000; // reaparece a la derecha
+    let left = parseInt(cloud.style.left);
+    left -= 0.5; 
+    if(left < -16) left = 7000;
     cloud.style.left = left+"px";
   });
 }
@@ -247,7 +256,7 @@ function loseLife(){
   lives--;
   perfectLevel = false;
   overlay.innerHTML =
-    `JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL ${level}<br>VIDAS: ${lives}<br>PREPÁRATE PARA JUGAR, GROSERO`;
+    `JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL ${level}<br>VIDAS: ${lives}<br>PREPÁRATE PARA JUGAR`;
   overlay.style.display="flex";
   resetLevel();
 
@@ -261,7 +270,6 @@ function loseLife(){
 function resetLevel(){
   position = 150;
   player.style.left="150px";
-  // Reset enemigos
   enemies.forEach((e,i)=> e.style.left = enemyPositions[i]+"px");
   dragon.style.left = dragonInitialX+"px";
 }
@@ -285,20 +293,20 @@ function fireworks(){
     let f = document.createElement("div");
     f.className="firework";
     f.style.background = colors[Math.floor(Math.random()*colors.length)];
-    f.style.left = Math.random()*window.innerWidth+"px";
-    f.style.top = Math.random()*200+"px";
+    f.style.left = Math.floor(Math.random()*window.innerWidth)+"px";
+    f.style.top = Math.floor(Math.random()*100)+"px";
     document.body.appendChild(f);
 
     let top = parseFloat(f.style.top);
     let left = parseFloat(f.style.left);
     let angle = Math.random()*2*Math.PI;
-    let speed = 2 + Math.random()*3;
+    let speed = 1 + Math.random()*2;
 
     let interval = setInterval(()=>{
       top -= Math.cos(angle)*speed;
       left += Math.sin(angle)*speed;
-      f.style.top = top+"px";
-      f.style.left = left+"px";
+      f.style.top = Math.floor(top)+"px";
+      f.style.left = Math.floor(left)+"px";
     },16);
 
     setTimeout(()=>{
