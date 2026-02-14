@@ -2,47 +2,45 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Nivel 1 - Perdona a tu Princesa</title>
+<title>Perdona a tu Princesa</title>
 
 <style>
 body{
   margin:0;
   overflow:hidden;
-  background:#5c94fc;
+  background:#79a9ff; /* Azul intermedio estilo Mario */
   font-family:monospace;
 }
 
-#game{
-  position:relative;
-  width:100vw;
-  height:100vh;
-  overflow:hidden;
+#world{
+  position:absolute;
+  height:100%;
+  width:6000px;
 }
 
-/* Piso ladrillo pixel */
 .ground{
   position:absolute;
   bottom:0;
-  width:5000px;
+  width:6000px;
   height:100px;
   background:
   repeating-linear-gradient(
-    90deg,
-    #b5522d 0px,
-    #b5522d 40px,
-    #8c3f1f 40px,
-    #8c3f1f 42px
+    0deg,
+    #c06030 0px,
+    #c06030 38px,
+    black 38px,
+    black 40px
   ),
   repeating-linear-gradient(
-    0deg,
-    #b5522d 0px,
-    #b5522d 40px,
-    #8c3f1f 40px,
-    #8c3f1f 42px
+    90deg,
+    #c06030 0px,
+    #c06030 78px,
+    black 78px,
+    black 80px
   );
 }
 
-/* Personaje pixel */
+/* Jugador */
 .player{
   position:absolute;
   width:40px;
@@ -50,28 +48,27 @@ body{
   background:#ffcc99;
   bottom:100px;
   left:100px;
-  box-shadow:
-    0 0 0 4px #000 inset;
+  border:4px solid black;
 }
 
-/* Enemigos pixel */
+/* Enemigos */
 .enemy{
   position:absolute;
   width:40px;
   height:40px;
-  bottom:100px;
   background:#8b0000;
-  box-shadow:0 0 0 4px #000 inset;
+  border:4px solid black;
+  bottom:100px;
 }
 
-/* Dragón grande */
+/* Dragón */
 .dragon{
   position:absolute;
   width:80px;
   height:80px;
-  bottom:100px;
   background:#550000;
-  box-shadow:0 0 0 6px #000 inset;
+  border:6px solid black;
+  bottom:100px;
 }
 
 /* Meta */
@@ -79,67 +76,72 @@ body{
   position:absolute;
   width:20px;
   height:120px;
-  bottom:100px;
   background:yellow;
-}
-
-/* Nubes pixel */
-.cloud{
-  position:absolute;
-  width:120px;
-  height:40px;
-  background:white;
-  image-rendering:pixelated;
+  border:4px solid black;
+  bottom:100px;
 }
 
 /* Overlay */
 #overlay{
-  position:absolute;
+  position:fixed;
   width:100%;
   height:100%;
-  background:rgba(0,0,0,0.8);
+  background:black;
   color:white;
-  display:flex;
+  display:none;
   justify-content:center;
   align-items:center;
   flex-direction:column;
   font-size:30px;
   text-align:center;
-  display:none;
+  z-index:1000;
+}
+
+/* Fuegos artificiales */
+.firework{
+  position:absolute;
+  width:6px;
+  height:6px;
+  background:yellow;
+  border-radius:50%;
 }
 </style>
 </head>
 
 <body>
 
-<div id="game">
-  <div class="ground"></div>
-  <div class="player" id="player"></div>
+<div id="overlay"></div>
 
-  <div class="enemy" style="left:600px;"></div>
-  <div class="enemy" style="left:1100px;"></div>
-  <div class="enemy" style="left:1700px;"></div>
+<div id="camera">
+  <div id="world">
+    <div class="ground"></div>
+    <div class="player" id="player"></div>
 
-  <div class="dragon" style="left:2400px;"></div>
-  <div class="goal" style="left:3000px;"></div>
+    <div class="enemy" style="left:800px;"></div>
+    <div class="enemy" style="left:1500px;"></div>
+    <div class="enemy" style="left:2200px;"></div>
 
-  <div class="cloud" style="top:80px; left:200px;"></div>
-  <div class="cloud" style="top:150px; left:600px;"></div>
-
-  <div id="overlay"></div>
+    <div class="dragon" style="left:3200px;"></div>
+    <div class="goal" style="left:4500px;"></div>
+  </div>
 </div>
 
 <script>
 const player = document.getElementById("player");
+const world = document.getElementById("world");
 const overlay = document.getElementById("overlay");
-const ground = document.querySelector(".ground");
+const enemies = document.querySelectorAll(".enemy, .dragon");
+const goal = document.querySelector(".goal");
 
 let position = 100;
 let velocityY = 0;
 let gravity = 1;
 let jumping = false;
 let lives = 3;
-let camera = 0;
+let deaths = 0;
+let cameraX = 0;
+let level = 1;
+let levelPerfect = true;
 
 document.addEventListener("keydown", e=>{
   if(e.key==="ArrowRight") position += 15;
@@ -150,7 +152,7 @@ document.addEventListener("keydown", e=>{
   }
 });
 
-function gameLoop(){
+function loop(){
   velocityY += gravity;
   let bottom = parseInt(player.style.bottom||100);
   bottom -= velocityY;
@@ -161,20 +163,30 @@ function gameLoop(){
     jumping = false;
   }
 
-  player.style.bottom = bottom + "px";
-  player.style.left = position + "px";
+  player.style.bottom = bottom+"px";
+  player.style.left = position+"px";
 
-  camera = position - 200;
-  document.getElementById("game").style.transform = `translateX(${-camera}px)`;
+  cameraX = position - 200;
+  document.body.style.transform = `translateX(${-cameraX}px)`;
 
-  checkCollisions();
-  requestAnimationFrame(gameLoop);
+  moveEnemies();
+  checkCollision();
+
+  requestAnimationFrame(loop);
 }
 
-function checkCollisions(){
-  const enemies = document.querySelectorAll(".enemy, .dragon");
-  const goal = document.querySelector(".goal");
+function moveEnemies(){
+  enemies.forEach(enemy=>{
+    let enemyX = parseInt(enemy.style.left);
+    if(enemyX > position){
+      enemy.style.left = (enemyX - 2) + "px";
+    } else {
+      enemy.style.left = (enemyX + 2) + "px";
+    }
+  });
+}
 
+function checkCollision(){
   enemies.forEach(enemy=>{
     if(isColliding(player, enemy)){
       loseLife();
@@ -182,44 +194,73 @@ function checkCollisions(){
   });
 
   if(isColliding(player, goal)){
-    showMessage("NIVEL 1 COMPLETADO<br>¿AHORA SÍ VAS A PERDONAR A TU PRINCESA?");
+    completeLevel();
   }
 }
 
 function isColliding(a,b){
-  const rect1 = a.getBoundingClientRect();
-  const rect2 = b.getBoundingClientRect();
+  const r1 = a.getBoundingClientRect();
+  const r2 = b.getBoundingClientRect();
   return !(
-    rect1.top > rect2.bottom ||
-    rect1.bottom < rect2.top ||
-    rect1.right < rect2.left ||
-    rect1.left > rect2.right
+    r1.top > r2.bottom ||
+    r1.bottom < r2.top ||
+    r1.right < r2.left ||
+    r1.left > r2.right
   );
 }
 
 function loseLife(){
-  lives--;
-  if(lives > 0){
-    showMessage("JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL 1<br>VIDAS: "+lives+"<br>PREPÁRATE PARA JUGAR, GROSERO", true);
-  } else {
-    showMessage("GAME OVER PAPITO,<br>YA PERDÓNAME");
-  }
-}
+  if(lives <= 0) return;
 
-function showMessage(text, restart=false){
-  overlay.innerHTML = text;
-  overlay.style.display = "flex";
+  lives--;
+  levelPerfect = false;
+
+  overlay.innerHTML = "JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL "+level+"<br>VIDAS: "+lives+"<br>PREPÁRATE PARA JUGAR, GROSERO";
+  overlay.style.display="flex";
 
   setTimeout(()=>{
     overlay.style.display="none";
-    if(restart){
-      position = 100;
-      player.style.left="100px";
-    }
+    resetPosition();
   },2500);
+
+  if(lives === 0){
+    setTimeout(()=>{
+      overlay.innerHTML="GAME OVER PAPITO,<br>YA PERDÓNAME";
+      overlay.style.display="flex";
+    },2600);
+  }
 }
 
-gameLoop();
+function resetPosition(){
+  position = 100;
+  player.style.left="100px";
+}
+
+function completeLevel(){
+  if(levelPerfect){
+    fireworks();
+  }
+
+  overlay.innerHTML="¿Muy feliz? Ahora te toca el otro 😡";
+  overlay.style.display="flex";
+
+  level++;
+  lives=3;
+  levelPerfect=true;
+}
+
+function fireworks(){
+  for(let i=0;i<80;i++){
+    let f=document.createElement("div");
+    f.className="firework";
+    f.style.left=Math.random()*window.innerWidth+"px";
+    f.style.top=Math.random()*300+"px";
+    document.body.appendChild(f);
+    setTimeout(()=>f.remove(),1000);
+  }
+}
+
+loop();
 </script>
 
 </body>
