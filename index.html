@@ -2,253 +2,224 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>El Rescate</title>
+<title>Nivel 1 - Perdona a tu Princesa</title>
+
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: black;
+body{
+  margin:0;
+  overflow:hidden;
+  background:#5c94fc;
+  font-family:monospace;
 }
-canvas {
-    display: block;
-    margin: auto;
-    background: #bde0fe;
+
+#game{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
 }
-#levelScreen {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: black;
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    font-family: Arial;
+
+/* Piso ladrillo pixel */
+.ground{
+  position:absolute;
+  bottom:0;
+  width:5000px;
+  height:100px;
+  background:
+  repeating-linear-gradient(
+    90deg,
+    #b5522d 0px,
+    #b5522d 40px,
+    #8c3f1f 40px,
+    #8c3f1f 42px
+  ),
+  repeating-linear-gradient(
+    0deg,
+    #b5522d 0px,
+    #b5522d 40px,
+    #8c3f1f 40px,
+    #8c3f1f 42px
+  );
 }
-#levelScreen h1 {
-    font-size: 60px;
-    margin: 10px;
+
+/* Personaje pixel */
+.player{
+  position:absolute;
+  width:40px;
+  height:40px;
+  background:#ffcc99;
+  bottom:100px;
+  left:100px;
+  box-shadow:
+    0 0 0 4px #000 inset;
 }
-#levelScreen h2 {
-    font-size: 30px;
-    margin: 5px;
+
+/* Enemigos pixel */
+.enemy{
+  position:absolute;
+  width:40px;
+  height:40px;
+  bottom:100px;
+  background:#8b0000;
+  box-shadow:0 0 0 4px #000 inset;
 }
-#levelScreen p {
-    font-size: 22px;
-    margin-top: 20px;
+
+/* Dragón grande */
+.dragon{
+  position:absolute;
+  width:80px;
+  height:80px;
+  bottom:100px;
+  background:#550000;
+  box-shadow:0 0 0 6px #000 inset;
+}
+
+/* Meta */
+.goal{
+  position:absolute;
+  width:20px;
+  height:120px;
+  bottom:100px;
+  background:yellow;
+}
+
+/* Nubes pixel */
+.cloud{
+  position:absolute;
+  width:120px;
+  height:40px;
+  background:white;
+  image-rendering:pixelated;
+}
+
+/* Overlay */
+#overlay{
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.8);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  font-size:30px;
+  text-align:center;
+  display:none;
 }
 </style>
 </head>
+
 <body>
 
-<div id="levelScreen">
-    <h1 id="levelTitle">NIVEL 1</h1>
-    <h2 id="lifeText">Vida: x3</h2>
-    <p>Prepárate para jugar grosero 😡</p>
+<div id="game">
+  <div class="ground"></div>
+  <div class="player" id="player"></div>
+
+  <div class="enemy" style="left:600px;"></div>
+  <div class="enemy" style="left:1100px;"></div>
+  <div class="enemy" style="left:1700px;"></div>
+
+  <div class="dragon" style="left:2400px;"></div>
+  <div class="goal" style="left:3000px;"></div>
+
+  <div class="cloud" style="top:80px; left:200px;"></div>
+  <div class="cloud" style="top:150px; left:600px;"></div>
+
+  <div id="overlay"></div>
 </div>
 
-<canvas id="gameCanvas" width="900" height="500"></canvas>
-
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-const levelScreen = document.getElementById("levelScreen");
-const levelTitle = document.getElementById("levelTitle");
-const lifeText = document.getElementById("lifeText");
+const player = document.getElementById("player");
+const overlay = document.getElementById("overlay");
+const ground = document.querySelector(".ground");
 
-let level = 1;
+let position = 100;
+let velocityY = 0;
+let gravity = 1;
+let jumping = false;
 let lives = 3;
-let gravity = 0.8;
-let gameSpeed = 3; // dificultad moderada nivel 1
-let obstacles = [];
-let clouds = [];
-let floorOffset = 0;
-let distance = 0;
-let levelLength = 3500;
-let gameOver = false;
-let gameStarted = false;
-let levelTimer = 0;
-let showLevelDuration = 120;
+let camera = 0;
 
-const player = {
-    x: 100,
-    y: 350,
-    width: 40,
-    height: 50,
-    dy: 0,
-    jumping: false
-};
-
-function prepareLevel() {
-    levelScreen.style.display = "flex";
-    levelTitle.innerText = "NIVEL " + level;
-    lifeText.innerText = "Vida: x" + lives;
-    levelTimer = 0;
-    gameStarted = false;
-    gameOver = false;
-
-    obstacles = [];
-    distance = 0;
-    gameSpeed = 3 + (level - 1) * 1.2; // progresivo
-    levelLength = 3500 + (level - 1) * 2000;
-}
-
-function createClouds() {
-    clouds = [];
-    for (let i = 0; i < 6; i++) {
-        clouds.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * 150,
-            size: 40 + Math.random() * 40
-        });
-    }
-}
-
-function drawClouds() {
-    ctx.fillStyle = "white";
-    clouds.forEach(cloud => {
-        ctx.beginPath();
-        ctx.arc(cloud.x, cloud.y, cloud.size/2, 0, Math.PI*2);
-        ctx.fill();
-        cloud.x -= gameSpeed * 0.3;
-        if (cloud.x < -50) cloud.x = canvas.width + 50;
-    });
-}
-
-function drawFloor() {
-    const brickWidth = 60;
-    const brickHeight = 30;
-
-    floorOffset -= gameSpeed;
-    if (floorOffset <= -brickWidth) floorOffset = 0;
-
-    for (let x = floorOffset; x < canvas.width; x += brickWidth) {
-        for (let y = 400; y < canvas.height; y += brickHeight) {
-            ctx.fillStyle = "#b5651d";
-            ctx.fillRect(x, y, brickWidth - 3, brickHeight - 3);
-        }
-    }
-}
-
-function createObstacle() {
-    const size = 30 + Math.random() * 15;
-    obstacles.push({
-        x: canvas.width,
-        y: 400 - size,
-        width: size,
-        height: size
-    });
-}
-
-function drawObstacles() {
-    ctx.fillStyle = "darkred";
-    obstacles.forEach((obs, index) => {
-        obs.x -= gameSpeed;
-        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-
-        if (collision(player, obs)) {
-            loseLife();
-        }
-
-        if (obs.x + obs.width < 0) obstacles.splice(index, 1);
-    });
-}
-
-function drawPlayer() {
-    ctx.fillStyle = "blue";
-    ctx.fillRect(player.x, player.y, player.width, player.height);
-}
-
-function collision(a, b) {
-    return a.x < b.x + b.width &&
-           a.x + a.width > b.x &&
-           a.y < b.y + b.height &&
-           a.y + a.height > b.y;
-}
-
-function loseLife() {
-    obstacles = [];
-    lives--;
-    lifeText.innerText = "Vida: x" + lives;
-
-    if (lives <= 0) {
-        showGameOver();
-        setTimeout(() => {
-            lives = 3;
-            level = 1;
-            prepareLevel();
-        }, 1500);
-    } else {
-        showGameOver();
-        setTimeout(() => {
-            prepareLevel();
-        }, 1000);
-    }
-}
-
-function showGameOver() {
-    gameStarted = false;
-    ctx.fillStyle = "black";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = "red";
-    ctx.font = "50px Arial";
-    ctx.fillText("GAME OVER", 280, 220);
-    ctx.font = "25px Arial";
-    ctx.fillText("Por no perdonar a tu princesa", 240, 270);
-}
-
-function update() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (!gameStarted) {
-        levelTimer++;
-        if (levelTimer >= showLevelDuration) {
-            levelScreen.style.display = "none";
-            gameStarted = true;
-        }
-    } else {
-
-        drawClouds();
-        drawFloor();
-
-        player.dy += gravity;
-        player.y += player.dy;
-
-        if (player.y > 350) {
-            player.y = 350;
-            player.jumping = false;
-        }
-
-        drawPlayer();
-        drawObstacles();
-
-        // dificultad equilibrada nivel 1
-        if (Math.random() < 0.015 + (level - 1) * 0.01) {
-            createObstacle();
-        }
-
-        distance += gameSpeed;
-
-        if (distance > levelLength) {
-            level++;
-            prepareLevel();
-        }
-    }
-
-    requestAnimationFrame(update);
-}
-
-document.addEventListener("keydown", function(e) {
-    if (e.code === "Space" && !player.jumping && gameStarted) {
-        player.dy = -13 - (level - 1) * 2;
-        player.jumping = true;
-    }
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowRight") position += 15;
+  if(e.key==="ArrowLeft") position -= 15;
+  if(e.key===" " && !jumping){
+    velocityY = -18;
+    jumping = true;
+  }
 });
 
-createClouds();
-prepareLevel();
-update();
+function gameLoop(){
+  velocityY += gravity;
+  let bottom = parseInt(player.style.bottom||100);
+  bottom -= velocityY;
+
+  if(bottom <= 100){
+    bottom = 100;
+    velocityY = 0;
+    jumping = false;
+  }
+
+  player.style.bottom = bottom + "px";
+  player.style.left = position + "px";
+
+  camera = position - 200;
+  document.getElementById("game").style.transform = `translateX(${-camera}px)`;
+
+  checkCollisions();
+  requestAnimationFrame(gameLoop);
+}
+
+function checkCollisions(){
+  const enemies = document.querySelectorAll(".enemy, .dragon");
+  const goal = document.querySelector(".goal");
+
+  enemies.forEach(enemy=>{
+    if(isColliding(player, enemy)){
+      loseLife();
+    }
+  });
+
+  if(isColliding(player, goal)){
+    showMessage("NIVEL 1 COMPLETADO<br>¿AHORA SÍ VAS A PERDONAR A TU PRINCESA?");
+  }
+}
+
+function isColliding(a,b){
+  const rect1 = a.getBoundingClientRect();
+  const rect2 = b.getBoundingClientRect();
+  return !(
+    rect1.top > rect2.bottom ||
+    rect1.bottom < rect2.top ||
+    rect1.right < rect2.left ||
+    rect1.left > rect2.right
+  );
+}
+
+function loseLife(){
+  lives--;
+  if(lives > 0){
+    showMessage("JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL 1<br>VIDAS: "+lives+"<br>PREPÁRATE PARA JUGAR, GROSERO", true);
+  } else {
+    showMessage("GAME OVER PAPITO,<br>YA PERDÓNAME");
+  }
+}
+
+function showMessage(text, restart=false){
+  overlay.innerHTML = text;
+  overlay.style.display = "flex";
+
+  setTimeout(()=>{
+    overlay.style.display="none";
+    if(restart){
+      position = 100;
+      player.style.left="100px";
+    }
+  },2500);
+}
+
+gameLoop();
 </script>
 
 </body>
