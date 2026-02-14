@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Perdona a tu Princesa - Pixel</title>
+<title>Perdona a tu Princesa - Pixel Avanzado</title>
 <style>
 body{
   margin:0;
@@ -34,24 +34,24 @@ body{
     repeating-linear-gradient(
       90deg,
       #c06030 0px,
-      #c06030 20px,
-      black 20px,
-      black 22px
+      #c06030 16px,
+      black 16px,
+      black 18px
     ),
     repeating-linear-gradient(
       0deg,
       #c06030 0px,
-      #c06030 20px,
-      black 20px,
-      black 22px
+      #c06030 16px,
+      black 16px,
+      black 18px
     );
 }
 
 /* PERSONAJE PIXEL */
 .player{
   position:absolute;
-  width:16px;
-  height:16px;
+  width:24px;
+  height:24px;
   background:#ffcc99;
   border:2px solid black;
   bottom:100px;
@@ -148,38 +148,37 @@ body{
 const player = document.getElementById("player");
 const world = document.getElementById("world");
 const overlay = document.getElementById("overlay");
-const enemies = document.querySelectorAll(".enemy");
+let enemies = Array.from(document.querySelectorAll(".enemy"));
 const dragon = document.querySelector(".dragon");
 const goal = document.querySelector(".goal");
-const clouds = document.querySelectorAll(".cloud");
+let clouds = Array.from(document.querySelectorAll(".cloud"));
 
 let position = 150;
 let velocityY = 0;
 let gravity = 1;
-let jumpsQueue = 0; // cola de saltos
+let jumpsQueue = 0;
 let lives = 3;
 let level = 1;
 let perfectLevel = true;
 
 // Guardar posiciones iniciales
-const enemyPositions = Array.from(enemies).map(e => parseInt(e.style.left));
+const enemyPositions = enemies.map(e => parseInt(e.style.left));
 const dragonInitialX = parseInt(dragon.style.left);
 let dragonDirection = 1;
 
 document.addEventListener("keydown", e=>{
-  if(e.key==="ArrowRight") position += 2; // más rápido
-  if(e.key==="ArrowLeft") position -= 2;
+  if(e.key==="ArrowRight") position += 3; // jugador más rápido
+  if(e.key==="ArrowLeft") position -= 3;
   if(position < 0) position = 0;
   if(e.key===" "){
-    jumpsQueue += 1; // cada barra suma un salto
+    jumpsQueue += 1;
   }
 });
 
 function gameLoop(){
   // SALTO MÚLTIPLE
   if(jumpsQueue > 0 && velocityY === 0){
-    velocityY = -12; // fuerza de salto
-    jumping = true;
+    velocityY = -12;
     jumpsQueue--;
   }
 
@@ -189,7 +188,6 @@ function gameLoop(){
   if(bottom <= 100){
     bottom = 100;
     velocityY = 0;
-    jumping = false;
   }
   player.style.bottom = bottom+"px";
   player.style.left = position+"px";
@@ -210,6 +208,7 @@ function gameLoop(){
 function moveEnemies(){
   enemies.forEach(enemy=>{
     let enemyX = parseInt(enemy.style.left);
+    // más lentos que el jugador
     if(enemyX > position){
       enemy.style.left = (enemyX - 1)+"px";
     } else {
@@ -237,8 +236,17 @@ function moveClouds(){
 }
 
 function checkCollision(){
-  enemies.forEach(enemy=>{
-    if(isColliding(player, enemy)) loseLife();
+  enemies.forEach((enemy, i)=>{
+    if(isColliding(player, enemy)){
+      // si cae sobre el enemigo
+      if(parseInt(player.style.bottom)+parseInt(player.style.height) - velocityY <= parseInt(enemy.style.bottom) + 4){
+        // enemigo muere
+        enemy.remove();
+        enemies.splice(i,1);
+      } else {
+        loseLife();
+      }
+    }
   });
   if(isColliding(player, dragon)) loseLife();
   if(isColliding(player, goal)) winLevel();
@@ -252,26 +260,27 @@ function isColliding(a,b){
 
 function loseLife(){
   if(lives <= 0) return;
-
   lives--;
   perfectLevel = false;
   overlay.innerHTML =
     `JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL ${level}<br>VIDAS: ${lives}<br>PREPÁRATE PARA JUGAR`;
   overlay.style.display="flex";
-  resetLevel();
+  
+  setTimeout(resetLevel, 3000); // 3 segundos antes de reiniciar
 
   if(lives === 0){
     setTimeout(()=>overlay.innerHTML="GAME OVER PAPITO,<br>YA PERDÓNAME",2000);
-  } else {
-    setTimeout(()=>overlay.style.display="none",2000);
   }
 }
 
 function resetLevel(){
   position = 150;
   player.style.left="150px";
+  // reset enemigos
   enemies.forEach((e,i)=> e.style.left = enemyPositions[i]+"px");
   dragon.style.left = dragonInitialX+"px";
+
+  overlay.style.display="none";
 }
 
 function winLevel(){
@@ -284,6 +293,17 @@ function winLevel(){
   level++;
   lives=3;
   perfectLevel=true;
+
+  // añadir más nubes por nivel
+  for(let i=0;i<level;i++){
+    let c = document.createElement("div");
+    c.className="cloud";
+    c.style.left = (Math.random()*7000)+"px";
+    c.style.top = (Math.random()*80 + 20)+"px";
+    world.appendChild(c);
+    clouds.push(c);
+  }
+
   setTimeout(()=>overlay.style.display="none",2000);
 }
 
