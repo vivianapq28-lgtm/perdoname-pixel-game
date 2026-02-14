@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Perdona a tu Princesa - Pixel Avanzado</title>
+<title>Perdona a tu Princesa - Pixel Retro</title>
 <style>
 body{
   margin:0;
@@ -24,6 +24,7 @@ body{
   width:7000px;
 }
 
+/* PISO PIXELADO */
 .ground{
   position:absolute;
   bottom:0;
@@ -46,6 +47,7 @@ body{
     );
 }
 
+/* PERSONAJE PIXEL */
 .player{
   position:absolute;
   width:24px;
@@ -56,6 +58,7 @@ body{
   left:150px;
 }
 
+/* ENEMIGOS PIXEL */
 .enemy{
   position:absolute;
   width:16px;
@@ -106,6 +109,16 @@ body{
   z-index:999;
 }
 
+/* Vidas en pantalla */
+#livesDisplay{
+  position:fixed;
+  top:10px;
+  left:10px;
+  color:white;
+  font-size:20px;
+  z-index:999;
+}
+
 .firework{
   position:absolute;
   width:4px;
@@ -116,6 +129,7 @@ body{
 </head>
 <body>
 
+<div id="livesDisplay">Vidas: 3</div>
 <div id="overlay"></div>
 
 <div id="camera">
@@ -140,6 +154,7 @@ body{
 const player = document.getElementById("player");
 const world = document.getElementById("world");
 const overlay = document.getElementById("overlay");
+const livesDisplay = document.getElementById("livesDisplay");
 let enemies = Array.from(document.querySelectorAll(".enemy"));
 const dragon = document.querySelector(".dragon");
 const goal = document.querySelector(".goal");
@@ -167,6 +182,7 @@ document.addEventListener("keydown", e=>{
 });
 
 function gameLoop(){
+  // salto múltiple
   if(jumpsQueue > 0 && velocityY === 0){
     velocityY = -12;
     jumpsQueue--;
@@ -198,7 +214,7 @@ function moveEnemies(){
   enemies.forEach(enemy=>{
     let enemyX = parseInt(enemy.style.left);
     if(enemyX > position){
-      enemy.style.left = (enemyX - 1)+"px";
+      enemy.style.left = (enemyX - 1)+"px"; // más lento que jugador
     } else {
       enemy.style.left = (enemyX + 1)+"px";
     }
@@ -231,13 +247,11 @@ function checkCollision(){
       const enemyBottom = parseInt(enemy.style.bottom);
       const enemyTop = enemyBottom + parseInt(enemy.style.height);
 
-      // si el jugador cae sobre el enemigo
       if(playerBottom < enemyTop && (playerTop - velocityY) >= enemyTop){
-        // enemigo muere
+        // jugador salta encima → enemigo muere
         enemy.remove();
         enemies.splice(i,1);
-        // jugador rebota un poquito
-        velocityY = -8;
+        velocityY = -8; // rebote pequeño
       } else {
         // contacto de frente → jugador pierde vida
         loseLife();
@@ -245,9 +259,7 @@ function checkCollision(){
     }
   });
 
-  // Dragon colisión frontal → jugador pierde
   if(isColliding(player, dragon)) loseLife();
-
   if(isColliding(player, goal)) winLevel();
 }
 
@@ -261,15 +273,17 @@ function loseLife(){
   if(lives <= 0) return;
   lives--;
   perfectLevel = false;
+  livesDisplay.innerText = "Vidas: " + lives;
+
   overlay.innerHTML =
-    `JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL ${level}<br>VIDAS: ${lives}<br>PREPÁRATE PARA JUGAR`;
-  overlay.style.display="flex";
-  
-  setTimeout(resetLevel, 3000);
+    `¡Perdiste una vida!<br>VIDAS: ${lives}<br>Reiniciando en 3 segundos...`;
+  overlay.style.display = "flex";
 
   if(lives === 0){
-    setTimeout(()=>overlay.innerHTML="GAME OVER PAPITO,<br>YA PERDÓNAME",2000);
+    setTimeout(()=>overlay.innerHTML = "GAME OVER PAPITO,<br>YA PERDÓNAME", 3000);
   }
+
+  setTimeout(resetLevel, 3000);
 }
 
 function resetLevel(){
@@ -277,7 +291,6 @@ function resetLevel(){
   player.style.left="150px";
   enemies.forEach((e,i)=> e.style.left = enemyPositions[i]+"px");
   dragon.style.left = dragonInitialX+"px";
-
   overlay.style.display="none";
 }
 
@@ -291,7 +304,9 @@ function winLevel(){
   level++;
   lives=3;
   perfectLevel=true;
+  livesDisplay.innerText = "Vidas: " + lives;
 
+  // añadir más nubes
   for(let i=0;i<level;i++){
     let c = document.createElement("div");
     c.className="cloud";
