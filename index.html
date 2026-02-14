@@ -3,55 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <title>Perdona a tu Princesa</title>
-
 <style>
 body{
   margin:0;
   overflow:hidden;
-  background:#79a9ff; /* Azul intermedio estilo Mario */
+  background:#8bb7ff;
   font-family:monospace;
+}
+
+#camera{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  overflow:hidden;
 }
 
 #world{
   position:absolute;
   height:100%;
-  width:6000px;
+  width:7000px;
 }
 
 .ground{
   position:absolute;
   bottom:0;
-  width:6000px;
+  width:7000px;
   height:100px;
   background:
-  repeating-linear-gradient(
-    0deg,
-    #c06030 0px,
-    #c06030 38px,
-    black 38px,
-    black 40px
-  ),
-  repeating-linear-gradient(
-    90deg,
-    #c06030 0px,
-    #c06030 78px,
-    black 78px,
-    black 80px
-  );
+    repeating-linear-gradient(
+      90deg,
+      #c06030 0px,
+      #c06030 60px,
+      black 60px,
+      black 64px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      #c06030 0px,
+      #c06030 30px,
+      black 30px,
+      black 34px
+    );
 }
 
-/* Jugador */
 .player{
   position:absolute;
   width:40px;
   height:40px;
   background:#ffcc99;
-  bottom:100px;
-  left:100px;
   border:4px solid black;
+  bottom:100px;
+  left:150px;
 }
 
-/* Enemigos */
 .enemy{
   position:absolute;
   width:40px;
@@ -61,7 +65,6 @@ body{
   bottom:100px;
 }
 
-/* Dragón */
 .dragon{
   position:absolute;
   width:80px;
@@ -71,7 +74,6 @@ body{
   bottom:100px;
 }
 
-/* Meta */
 .goal{
   position:absolute;
   width:20px;
@@ -81,7 +83,6 @@ body{
   bottom:100px;
 }
 
-/* Overlay */
 #overlay{
   position:fixed;
   width:100%;
@@ -94,20 +95,17 @@ body{
   flex-direction:column;
   font-size:30px;
   text-align:center;
-  z-index:1000;
+  z-index:999;
 }
 
-/* Fuegos artificiales */
 .firework{
   position:absolute;
   width:6px;
   height:6px;
-  background:yellow;
   border-radius:50%;
 }
 </style>
 </head>
-
 <body>
 
 <div id="overlay"></div>
@@ -117,12 +115,12 @@ body{
     <div class="ground"></div>
     <div class="player" id="player"></div>
 
-    <div class="enemy" style="left:800px;"></div>
-    <div class="enemy" style="left:1500px;"></div>
-    <div class="enemy" style="left:2200px;"></div>
+    <div class="enemy" style="left:1000px;"></div>
+    <div class="enemy" style="left:1800px;"></div>
+    <div class="enemy" style="left:2600px;"></div>
 
-    <div class="dragon" style="left:3200px;"></div>
-    <div class="goal" style="left:4500px;"></div>
+    <div class="dragon" style="left:3800px;"></div>
+    <div class="goal" style="left:6000px;"></div>
   </div>
 </div>
 
@@ -130,138 +128,160 @@ body{
 const player = document.getElementById("player");
 const world = document.getElementById("world");
 const overlay = document.getElementById("overlay");
-const enemies = document.querySelectorAll(".enemy, .dragon");
+const enemies = document.querySelectorAll(".enemy");
+const dragon = document.querySelector(".dragon");
 const goal = document.querySelector(".goal");
 
-let position = 100;
+let position = 150;
 let velocityY = 0;
 let gravity = 1;
 let jumping = false;
 let lives = 3;
-let deaths = 0;
-let cameraX = 0;
 let level = 1;
-let levelPerfect = true;
+let perfectLevel = true;
+
+// Guardar posiciones iniciales
+const enemyPositions = Array.from(enemies).map(e => parseInt(e.style.left));
+const dragonInitialX = parseInt(dragon.style.left);
+let dragonDirection = 1;
 
 document.addEventListener("keydown", e=>{
-  if(e.key==="ArrowRight") position += 15;
-  if(e.key==="ArrowLeft") position -= 15;
+  if(e.key==="ArrowRight") position += 12;
+  if(e.key==="ArrowLeft") position -= 12;
+  if(position < 0) position = 0; // límite izquierda
   if(e.key===" " && !jumping){
     velocityY = -18;
     jumping = true;
   }
 });
 
-function loop(){
+function gameLoop(){
+  // SALTO
   velocityY += gravity;
   let bottom = parseInt(player.style.bottom||100);
   bottom -= velocityY;
-
   if(bottom <= 100){
     bottom = 100;
     velocityY = 0;
     jumping = false;
   }
-
   player.style.bottom = bottom+"px";
   player.style.left = position+"px";
 
-  cameraX = position - 200;
-  document.body.style.transform = `translateX(${-cameraX}px)`;
+  // CÁMARA
+  let cameraX = position - 300;
+  if(cameraX < 0) cameraX = 0;
+  world.style.transform = `translateX(${-cameraX}px)`;
 
   moveEnemies();
+  moveDragon();
   checkCollision();
 
-  requestAnimationFrame(loop);
+  requestAnimationFrame(gameLoop);
 }
 
 function moveEnemies(){
   enemies.forEach(enemy=>{
     let enemyX = parseInt(enemy.style.left);
     if(enemyX > position){
-      enemy.style.left = (enemyX - 2) + "px";
+      enemy.style.left = (enemyX - 1.5)+"px";
     } else {
-      enemy.style.left = (enemyX + 2) + "px";
+      enemy.style.left = (enemyX + 1.5)+"px";
     }
   });
 }
 
+function moveDragon(){
+  let dragonX = parseInt(dragon.style.left);
+  dragonX += dragonDirection * 1;
+  if(dragonX > dragonInitialX + 200 || dragonX < dragonInitialX - 200){
+    dragonDirection *= -1;
+  }
+  dragon.style.left = dragonX + "px";
+}
+
 function checkCollision(){
   enemies.forEach(enemy=>{
-    if(isColliding(player, enemy)){
-      loseLife();
-    }
+    if(isColliding(player, enemy)) loseLife();
   });
-
-  if(isColliding(player, goal)){
-    completeLevel();
-  }
+  if(isColliding(player, dragon)) loseLife();
+  if(isColliding(player, goal)) winLevel();
 }
 
 function isColliding(a,b){
   const r1 = a.getBoundingClientRect();
   const r2 = b.getBoundingClientRect();
-  return !(
-    r1.top > r2.bottom ||
-    r1.bottom < r2.top ||
-    r1.right < r2.left ||
-    r1.left > r2.right
-  );
+  return !(r1.top > r2.bottom || r1.bottom < r2.top || r1.right < r2.left || r1.left > r2.right);
 }
 
 function loseLife(){
   if(lives <= 0) return;
 
   lives--;
-  levelPerfect = false;
-
-  overlay.innerHTML = "JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL "+level+"<br>VIDAS: "+lives+"<br>PREPÁRATE PARA JUGAR, GROSERO";
+  perfectLevel = false;
+  overlay.innerHTML =
+    `JAJAJA TE TOCA OTRA VEZ POR BOBIS<br><br>NIVEL ${level}<br>VIDAS: ${lives}<br>PREPÁRATE PARA JUGAR, GROSERO`;
   overlay.style.display="flex";
-
-  setTimeout(()=>{
-    overlay.style.display="none";
-    resetPosition();
-  },2500);
+  resetLevel();
 
   if(lives === 0){
-    setTimeout(()=>{
-      overlay.innerHTML="GAME OVER PAPITO,<br>YA PERDÓNAME";
-      overlay.style.display="flex";
-    },2600);
+    setTimeout(()=>overlay.innerHTML="GAME OVER PAPITO,<br>YA PERDÓNAME",2000);
+  } else {
+    setTimeout(()=>overlay.style.display="none",2000);
   }
 }
 
-function resetPosition(){
-  position = 100;
-  player.style.left="100px";
+function resetLevel(){
+  position = 150;
+  player.style.left="150px";
+  // Reset enemigos
+  enemies.forEach((e,i)=> e.style.left = enemyPositions[i]+"px");
+  dragon.style.left = dragonInitialX+"px";
 }
 
-function completeLevel(){
-  if(levelPerfect){
-    fireworks();
-  }
-
-  overlay.innerHTML="¿Muy feliz? Ahora te toca el otro 😡";
+function winLevel(){
   overlay.style.display="flex";
+  if(perfectLevel) fireworks();
+  overlay.innerHTML = perfectLevel ?
+    `¡Nivel Perfecto! 😎<br>Prepárate para el siguiente` :
+    `Nivel completado 😏<br>Pero podrías mejorar`;
 
   level++;
   lives=3;
-  levelPerfect=true;
+  perfectLevel=true;
+  setTimeout(()=>overlay.style.display="none",2000);
 }
 
 function fireworks(){
-  for(let i=0;i<80;i++){
-    let f=document.createElement("div");
+  const colors = ["yellow","red","orange","white","blue"];
+  for(let i=0;i<50;i++){
+    let f = document.createElement("div");
     f.className="firework";
-    f.style.left=Math.random()*window.innerWidth+"px";
-    f.style.top=Math.random()*300+"px";
+    f.style.background = colors[Math.floor(Math.random()*colors.length)];
+    f.style.left = Math.random()*window.innerWidth+"px";
+    f.style.top = Math.random()*200+"px";
     document.body.appendChild(f);
-    setTimeout(()=>f.remove(),1000);
+
+    let top = parseFloat(f.style.top);
+    let left = parseFloat(f.style.left);
+    let angle = Math.random()*2*Math.PI;
+    let speed = 2 + Math.random()*3;
+
+    let interval = setInterval(()=>{
+      top -= Math.cos(angle)*speed;
+      left += Math.sin(angle)*speed;
+      f.style.top = top+"px";
+      f.style.left = left+"px";
+    },16);
+
+    setTimeout(()=>{
+      clearInterval(interval);
+      f.remove();
+    },1000);
   }
 }
 
-loop();
+gameLoop();
 </script>
-
 </body>
 </html>
